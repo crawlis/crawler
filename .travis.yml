@@ -13,13 +13,11 @@ matrix:
   fast_finish: true
   allow_failures:
     - rust: nightly
-
 deploy:
   provider: releases
   api_key:
-    secure: $GITHUB_OAUTH_TOKEN
-  file_glob: true
-  file: ./*
+    secure: iEnX7N+MfdQ0zoW4nHad3JQfPd2vnTC+sjXQL6myOaAkXN0A3V8FObzBdkihvubJ6rlxH5ZeVdbtYNM0fIMtYvuo2uccjY5yE/LmomzKYNYyVVhDBEiJo9DqcYJKQtSpUr5gDW9dfCm2OGuoQrOwRHI90iyatYrKiOBha2O9JQMVjIQci6raupRvWIXO0QzjyZ6fwykPTMrZGCyb4tAGP4rFCtMKkBIsneNevN+cS0g7J+DvJ+zUZUzK2pBaC3mO7VOIr8AEVn0buZ2ZQYRY/0Pj1ziZD573HRrI/g19qnBHHNXFybT8cuEqxgRc5tzWNsixD/ISOwoH8foXqz7t7BNWfSc8N/TodOMIABeQ4FbFPBwQByG/zGysVh6izp3y3TU4DDbFFfUUlxvMelm/n8BwMlWoiRpfg59H0eZp+qYqmbuIxApRktIc4vRQeGcnX6x11kiDKwn7yEFK2HQIPx3/L/3CWxW+cyXGSDO+hvWv8exEGOM498mwgy+e5IQ+udpRJLoHl4KpfyOlIrbsA4I8+KMbsxTxq/eHbn7sFl/n/rRu5KG75rPisKYynBkvo9OfMuQngXarGQKIIPj8/avc8ekiE4d59ewwcSM+Z5kinYAXqVXtRMLSF7/YyGkXNjSAkq6w+I9OCHv1AvGXHYNWaAoJ/QLC2YqS9xZS8SQ=
+  file: ""
   on:
-    branch: master
+    repo: crawlis/crawler
   skip_cleanup: "true"
