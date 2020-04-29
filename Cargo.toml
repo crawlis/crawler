@@ -1,0 +1,13 @@
+[package]
+name = "crawler"
+version = "0.1.0"
+authors = ["donacrio <donatien.criaud@gmail.com>"]
+edition = "2018"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+
+[dependencies]

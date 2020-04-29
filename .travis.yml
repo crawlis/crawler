@@ -1,0 +1,19 @@
+language: rust
+
+services:
+  - docker
+
+rust:
+  - stable
+  - beta
+  - nightly
+
+install:
+  - cargo build --release --verbose --all
+script:
+  - cargo test --release --verbose --all
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - rust: nightly
