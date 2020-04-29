@@ -1,28 +1,43 @@
 language: rust
+
 services:
   - docker
+
 rust:
   - stable
   - beta
   - nightly
+
 env:
   - TARGET=x86_64-unknown-linux-musl
   - TARGET=x86_64-unknown-linux-gnu
 os:
   - linux
-install:
-  - "./.travis/install.sh"
+
+before_script:
+  - export PATH="$PATH:$HOME/.cargo/bin"
+  - rustup target add $TARGET
+
 script:
-  - "./.travis/build.sh"
+  - cargo build --target $TARGET --verbose
+  - cargo build --target $TARGET --verbose --release
+
+before_deploy:
+  - mkdir -p target/executable
+  - cp target/${TARGET}/debug/crawler target/executable/crawler-${TRAVIS_RUST_VERSION}-${TARGET}-debug
+  - cp target/${TARGET}/release/crawler target/executable/crawler-${TRAVIS_RUST_VERSION}-${TARGET}
+
 deploy:
   provider: releases
   api_key:
     secure: hsVqVXIzHLoiXRFLE1cWT1ei7gNgMvX4fB24nUM50Vg9jnzoXrjRJiQYFZSZyTLbJ8/DVyLBzljaIWPKYDOIwPgZV/L9GQjkHL+84SfoLxCMVSf5zqXJhlKkLkn4gFnYhw7pm4S/UsWw59hQQ8EFYCVezQqc8tso+Rs3XL5tw/cSonw986Qq8pr8APdgSfleJhnEy3DrMfEix5f5fDy1dEamzVx30l460VBG47Uu+pNBGftiw2Qd0hRI+8EoDNgcMWUkJZ1lLUBdSGt/63SJLxATFObgCDOMJUFi9sXJAKyoj2Yo4uxJ/MDCxpJvWFYA0aR9OMOB59Lin+GGSBflK152GqCLSBgNXPfGGOCNNlZlbeJgqpVvGz7G0oXexVx1JPaW20TSXqKDdlHgNb++UJcjxXZRIUiEVcl6DJvICHhv4IUmjo1JLipQXEZQBDKuoV9jaVeZ4DGikUxOe3pp07smxUBCmYNEhjxKEiRyetsYZHN5FTwjKQwk1IFELbREA74jC7p282QU1tqgdgmLv4LhrhWt78/Xrvpr5oIOPDzEUIVMYfYyhYGhiPULBsI1IQyvc97P+dO2moU95TzZm7LP81VSV3uZlgITjVO6kLiHtFlXbW8AHMOVok4UeWM0L4AwVL+CmzaC97I8d2zbX4ie7Yk1AuI+wahw+mqv+1g=
-  file: ""
+  file_glob: true
+  file: target/executable/*
   on:
     repo: crawlis/crawler
     branch: donacrio/update_ci
   skip_cleanup: "true"
+
 jobs:
   fast_finish: true
   allow_failures:
