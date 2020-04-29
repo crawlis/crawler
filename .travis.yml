@@ -1,23 +1,43 @@
 language: rust
+
 services:
   - docker
+
 rust:
   - stable
   - beta
   - nightly
+
+env:
+  - TARGET=x86_64-unknown-linux-musl
+  - TARGET=x86_64-unknown-linux-gnu
+
+os:
+  - linux
+
 install:
-  - cargo build --release --verbose --all
+  - ./.travis/install.sh
+
 script:
-  - cargo test --release --verbose --all
-matrix:
-  fast_finish: true
-  allow_failures:
-    - rust: nightly
+  - ./.travis/build.sh
+
 deploy:
   provider: releases
+  script:
   api_key:
-    secure: iEnX7N+MfdQ0zoW4nHad3JQfPd2vnTC+sjXQL6myOaAkXN0A3V8FObzBdkihvubJ6rlxH5ZeVdbtYNM0fIMtYvuo2uccjY5yE/LmomzKYNYyVVhDBEiJo9DqcYJKQtSpUr5gDW9dfCm2OGuoQrOwRHI90iyatYrKiOBha2O9JQMVjIQci6raupRvWIXO0QzjyZ6fwykPTMrZGCyb4tAGP4rFCtMKkBIsneNevN+cS0g7J+DvJ+zUZUzK2pBaC3mO7VOIr8AEVn0buZ2ZQYRY/0Pj1ziZD573HRrI/g19qnBHHNXFybT8cuEqxgRc5tzWNsixD/ISOwoH8foXqz7t7BNWfSc8N/TodOMIABeQ4FbFPBwQByG/zGysVh6izp3y3TU4DDbFFfUUlxvMelm/n8BwMlWoiRpfg59H0eZp+qYqmbuIxApRktIc4vRQeGcnX6x11kiDKwn7yEFK2HQIPx3/L/3CWxW+cyXGSDO+hvWv8exEGOM498mwgy+e5IQ+udpRJLoHl4KpfyOlIrbsA4I8+KMbsxTxq/eHbn7sFl/n/rRu5KG75rPisKYynBkvo9OfMuQngXarGQKIIPj8/avc8ekiE4d59ewwcSM+Z5kinYAXqVXtRMLSF7/YyGkXNjSAkq6w+I9OCHv1AvGXHYNWaAoJ/QLC2YqS9xZS8SQ=
-  file: ""
+    secure: test
+  file_glob: true
+  file: target/executable/*
+  skip_cleanup: true
+  overwrite: true
+  verbose: true
+  name: "$TRAVIS_TAG"
+  #  body: "$JOURNAL"
   on:
     repo: crawlis/crawler
-  skip_cleanup: "true"
+    tags: true
+
+matrix:
+fast_finish: true
+allow_failures:
+  - rust: nightly
