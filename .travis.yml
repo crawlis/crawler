@@ -28,16 +28,15 @@ deploy:
     secure: test
   file_glob: true
   file: target/executable/*
-  skip_cleanup: true
+  cleanup: false
   overwrite: true
-  verbose: true
   name: "$TRAVIS_TAG"
   #  body: "$JOURNAL"
   on:
     repo: crawlis/crawler
     tags: true
 
-matrix:
-fast_finish: true
-allow_failures:
-  - rust: nightly
+jobs:
+  fast_finish: true
+  allow_failures:
+    - rust: nightly
