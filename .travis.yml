@@ -13,9 +13,10 @@ matrix:
   fast_finish: true
   allow_failures:
     - rust: nightly
+
 deploy:
   provider: releases
-  api_key: "GITHUB OAUTH TOKEN"
+  api_key: $GITHUB_OAUTH_TOKEN
   file_glob: true
   file: ./*
   on:
