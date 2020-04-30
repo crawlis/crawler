@@ -31,14 +31,13 @@ before_deploy:
 deploy:
   provider: releases
   edge: true
-  token: ${RELEASES_TOKEN}
+  token: ${GITHUB_CRAWLIS_CI_RELEASE_TOKEN}
   file_glob: true
   file: target/executable/*
   on:
     repo: crawlis/crawler
     tags: true
-    condition: ${TRAVIS_RUST_VERSION}=stable
-  cleanup: false
+    condition: ${TRAVIS_RUST_VERSION} = stable
 
 jobs:
   fast_finish: true
