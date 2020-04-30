@@ -30,15 +30,15 @@ before_deploy:
 
 deploy:
   provider: releases
-  api_key:
-    secure: $GITHUB_OAUTH_TOKEN
+  token: $GITHUB_OAUTH_TOKEN
   file_glob: true
   file: target/executable/*
   on:
     repo: crawlis/crawler
     tags: true
     condition: ${TRAVIS_RUST_VERSION}=stable
-  skip_cleanup: "true"
+  cleanup: false
+
 jobs:
   fast_finish: true
   allow_failures:
