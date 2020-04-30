@@ -30,7 +30,8 @@ before_deploy:
 
 deploy:
   provider: releases
-  token: $GITHUB_OAUTH_TOKEN
+  api_key:
+    secure: $GITHUB_OAUTH_TOKEN
   file_glob: true
   file: target/executable/*
   on:
