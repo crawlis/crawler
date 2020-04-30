@@ -36,7 +36,7 @@ deploy:
     repo: crawlis/crawler
     tags: true
     condition: ${TRAVIS_RUST_VERSION}=stable
-  cleanup: false
+  skip_cleanup: true
 
 jobs:
   fast_finish: true
