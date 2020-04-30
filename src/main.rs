@@ -1,13 +1,11 @@
-use http::method::Method;
-use http::Request;
-use select::document::Document;
-use std::error::Error;
+use std::collections::HashMap;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let request = Request::builder()
-        .method(Method::GET)
-        .uri("https://www.rust-lang.org/en-US/")
-        .body(())?;
-
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let res = reqwest::get("https://httpbin.org/ip")
+        .await?
+        .json::<HashMap<String, String>>()
+        .await?;
+    println!("{:#?}", res);
     Ok(())
 }

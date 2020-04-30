@@ -11,5 +11,6 @@ opt-level = 0
 opt-level = 3
 
 [dependencies]
-http = "0.2.1"
-select ="0.4.3"
+tokio = { version = "0.2.20", features = ["full"] }
+reqwest = { version = "0.10.4", features = ["json"] }
+select = "0.4.3"
