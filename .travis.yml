@@ -36,7 +36,7 @@ deploy:
   file: target/executable/*
   on:
     repo: crawlis/crawler
-    branch: donacrio/update_travis
+    branch: donacrio/update_ci
     condition: ${TRAVIS_RUST_VERSION}=stable
   skip_cleanup: "true"
 jobs:
