@@ -1,32 +1,82 @@
 language: rust
 
-services:
-  - docker
+os: linux
+dist: xenial
+addons: &linux_addons
+  apt:
+    packages:
+      - pkg-config
+      - libssl-dev
+      # needed for musl targets
+      - musl-tools
+      # needed to build deb packages
+      - fakeroot
 
-rust:
-  - stable
-  - beta
-  - nightly
+jobs:
+  fast_finish: true
+  allow_failures:
+    - rust: nightly
+  include:
+    - rust: stable
+      os: linux
+      dist: xenial
+      env: TARGET=x86_64-unknown-linux-gnu
+      addons: *linux_addons
+    - rust: stable
+      os: linux
+      dist: xenial
+      env: TARGET=x86_64-unknown-linux-musl
+      addons: *linux_addons
+    - rust: stable
+      os: osx
+      env: TARGET=x86_64-apple-darwin
+    - rust: beta
+      os: linux
+      dist: xenial
+      env: TARGET=x86_64-unknown-linux-gnu
+      addons: *linux_addons
+    - rust: beta
+      os: linux
+      dist: xenial
+      env: TARGET=x86_64-unknown-linux-musl
+      addons: *linux_addons
+    - rust: beta
+      os: osx
+      env: TARGET=x86_64-apple-darwin
+    - rust: nightly
+      os: linux
+      dist: xenial
+      env: TARGET=x86_64-unknown-linux-gnu
+      addons: *linux_addons
+    - rust: nightly
+      os: linux
+      dist: xenial
+      env: TARGET=x86_64-unknown-linux-musl
+      addons: *linux_addons
+    - rust: nightly
+      os: osx
+      env: TARGET=x86_64-apple-darwin
 
-env:
-  - TARGET=x86_64-unknown-linux-musl
-  - TARGET=x86_64-unknown-linux-gnu
+before_install:
+  - set -e
+  - rustup self update
 
-os:
-  - linux
-
-before_script:
-  - export PATH="${PATH}:${HOME}/.cargo/bin"
+install:
   - rustup target add ${TARGET}
 
 script:
   - cargo build --target ${TARGET} --verbose
-  - cargo build --target ${TARGET} --verbose --release
+  - cargo test --target ${TARGET} --verbose
+
+after_script:
+  - set +e
 
 before_deploy:
+  - cargo build --target ${TARGET} --verbose --release
+  - cargo test --target ${TARGET} --verbose --release
   - mkdir -p target/executable
-  - cp target/${TARGET}/debug/crawler target/executable/crawler-${TRAVIS_RUST_VERSION}-${TARGET}-debug
-  - cp target/${TARGET}/release/crawler target/executable/crawler-${TRAVIS_RUST_VERSION}-${TARGET}
+  - cp target/${TARGET}/debug/crawler target/executable/crawler-${TRAVIS_TAG}-${TARGET}-debug
+  - cp target/${TARGET}/release/crawler target/executable/crawler-${TRAVIS_TAG}-${TARGET}
 
 deploy:
   provider: releases
@@ -39,7 +89,8 @@ deploy:
     tags: true
     condition: ${TRAVIS_RUST_VERSION} = stable
 
-jobs:
-  fast_finish: true
-  allow_failures:
-    - rust: nightly
+branches:
+  only:
+    - master
+    # Regex pattern to match tags
+    - /^v\d+\.\d+\.\d+.*$/
