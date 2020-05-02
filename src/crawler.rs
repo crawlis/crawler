@@ -16,7 +16,6 @@ pub fn run(starting_url: &str, n_loops: u16) -> Result<(), Box<dyn Error>> {
         let crawling_url: Url = queue.pop_front().unwrap();
         if !map.contains_key(&crawling_url) {
             let new_links: Vec<String> = crawl(crawling_url.clone()).unwrap_or(Vec::new());
-            println!("{:?}", new_links);
             let new_urls: HashSet<Url> = links_to_urls(crawling_url.clone(), new_links);
             for new_url in new_urls.iter() {
                 queue.push_back(new_url.clone());

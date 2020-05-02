@@ -38,8 +38,8 @@ FROM scratch
 # Adding the binary
 COPY --from=builder /build-out/crawler .
 # Adding SSL certificates
-#COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-#ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-#ENV SSL_CERT_DIR=/etc/ssl/certs
-#USER 1000
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_DIR=/etc/ssl/certs
+USER 1000
 CMD ["./crawler"]
