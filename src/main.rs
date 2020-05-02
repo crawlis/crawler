@@ -1,32 +1,33 @@
 use select::document::Document;
 use select::predicate::Name;
+use std::collections::HashMap;
 use std::error::Error;
-use url::Url;
 
 const STARTING_DOMAIN: &str = "https://www.lemonde.fr/";
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let domains = crawl(STARTING_DOMAIN)?;
-    println!("{:#?}", domains);
-    Ok(())
+fn main() {
+    let mut map: HashMap<String, Vec<String>> = HashMap::new();
+    map.entry(String::from(STARTING_DOMAIN))
+        .or_insert(crawl(STARTING_DOMAIN).unwrap_or(Vec::new()));
+
+    for key in map.keys() {
+        let mut map_copy = map.clone();
+        let crawling_urls = map_copy.get(key).unwrap().clone();
+        for url in crawling_urls {
+            map_copy
+                .entry(url.clone())
+                .or_insert(crawl(&url).unwrap_or(Vec::new()));
+        }
+    }
 }
 
 fn crawl(url: &str) -> Result<Vec<String>, Box<dyn Error>> {
     println!("Crawling {}", url);
     let response = reqwest::blocking::get(url)?;
-    let links = Document::from_read(response)?
+    let urls = Document::from_read(response)?
         .find(Name("a"))
         .filter_map(|a| a.attr("href"))
-        .map(|link| String::from(link))
+        .map(|url| String::from(url))
         .collect::<Vec<String>>();
-    let domains = extract_domains(&links);
-    Ok(domains)
-}
-
-fn extract_domains(links: &Vec<String>) -> Vec<String> {
-    links
-        .iter()
-        .filter_map(|link| Url::parse(link).map(|url| Some(url)).unwrap_or(None))
-        .filter_map(|url| url.domain().map(|domain| domain.to_string()))
-        .collect::<Vec<String>>()
+    Ok(urls)
 }
