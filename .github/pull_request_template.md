@@ -1,11 +1,3 @@
----
-name: Pull request
-about: ""
-title: ""
-labels: ""
-assignees: ""
----
-
 ## What does this PR do?
 
 _Please provide any background_
