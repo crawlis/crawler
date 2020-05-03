@@ -9,31 +9,35 @@ use url::Url;
 
 pub struct CrawlerConfig {
     keeper_url: Url,
+    starting_url: Url,
 }
 
 impl CrawlerConfig {
-    pub fn new(keeper_url: Url) -> CrawlerConfig {
-        CrawlerConfig { keeper_url }
+    pub fn new(keeper_url: Url, starting_url: Url) -> CrawlerConfig {
+        CrawlerConfig {
+            keeper_url,
+            starting_url,
+        }
     }
 }
 
 pub struct Crawler {
     client: reqwest::blocking::Client,
-    keeper_url: Url,
+    config: CrawlerConfig,
 }
 
 impl Crawler {
     pub fn new(config: CrawlerConfig) -> Crawler {
         Crawler {
             client: reqwest::blocking::Client::new(),
-            keeper_url: config.keeper_url,
+            config,
         }
     }
 
-    pub fn run(&self, starting_url: Url) -> Result<(), Box<dyn Error>> {
+    pub fn run(&self) -> Result<(), Box<dyn Error>> {
         let mut map: HashMap<Url, HashSet<Url>> = HashMap::new();
         let mut queue: VecDeque<Url> = VecDeque::new();
-        queue.push_back(starting_url);
+        queue.push_back(self.config.starting_url.clone());
 
         while !queue.is_empty() {
             let crawling_url: Url = queue.pop_front().unwrap();
@@ -75,7 +79,7 @@ impl Crawler {
         body: CrawlerResultsRequestBody,
     ) -> Result<(), Box<dyn std::error::Error>> {
         self.client
-            .post(self.keeper_url.clone())
+            .post(self.config.keeper_url.clone())
             .body(serde_json::to_string(&body).unwrap())
             .send()?;
         Ok(())
