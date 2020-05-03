@@ -50,7 +50,7 @@ impl Crawler {
                         crawling_results.parent.clone(),
                         crawling_results.children.clone(),
                     );
-                    self.send_to_keeper(CrawlerResultsRequestBody::from(crawling_results))?;
+                    self.send_to_keeper(CrawlerResultsMessage::from(crawling_results))?;
                 }
             }
         }
@@ -76,7 +76,7 @@ impl Crawler {
 
     fn send_to_keeper(
         &self,
-        body: CrawlerResultsRequestBody,
+        body: CrawlerResultsMessage,
     ) -> Result<(), Box<dyn std::error::Error>> {
         self.client
             .post(self.config.keeper_url.clone())
@@ -98,14 +98,14 @@ impl CrawlerResults {
 }
 
 #[derive(Deserialize, Serialize)]
-struct CrawlerResultsRequestBody {
+struct CrawlerResultsMessage {
     parent: String,
     children: Vec<String>,
 }
 
-impl CrawlerResultsRequestBody {
-    fn from(crawling_results: CrawlerResults) -> CrawlerResultsRequestBody {
-        CrawlerResultsRequestBody {
+impl CrawlerResultsMessage {
+    fn from(crawling_results: CrawlerResults) -> CrawlerResultsMessage {
+        CrawlerResultsMessage {
             parent: crawling_results.parent.into_string(),
             children: crawling_results
                 .children
