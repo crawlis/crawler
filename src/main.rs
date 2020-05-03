@@ -25,9 +25,7 @@ fn main() {
 fn get_config(mut args: env::Args) -> Result<CrawlerConfig, Box<dyn Error>> {
     args.next();
 
-    let starting_url = args
-        .next()
-        .ok_or("No argument specified for starting url")?;
+    let starting_url = env::var("STARTING_URL")?;
     let starting_url = Url::parse(&starting_url)?;
 
     let keeper_host = env::var("KEEPER_HOST")?;
