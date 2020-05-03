@@ -8,10 +8,9 @@ use std::process;
 use url::Url;
 
 fn main() {
-    dotenv().expect("No .env file!");
+    dotenv().ok();
 
-    let args = env::args();
-    let config = get_config(args).unwrap_or_else(|err| {
+    let config = get_config().unwrap_or_else(|err| {
         eprintln!("Problem initializing crawler config: {}", err);
         process::exit(1);
     });
@@ -22,9 +21,7 @@ fn main() {
     });
 }
 
-fn get_config(mut args: env::Args) -> Result<CrawlerConfig, Box<dyn Error>> {
-    args.next();
-
+fn get_config() -> Result<CrawlerConfig, Box<dyn Error>> {
     let starting_url = env::var("STARTING_URL")?;
     let starting_url = Url::parse(&starting_url)?;
 
