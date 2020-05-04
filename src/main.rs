@@ -27,10 +27,11 @@ fn get_config() -> Result<CrawlerConfig, Box<dyn Error>> {
 
     let keeper_host = env::var("KEEPER_HOST")?;
     let keeper_port = env::var("KEEPER_PORT")?;
-
     let keeper_url = format!("http://{}:{}", keeper_host, keeper_port);
     let keeper_url = Url::parse(&keeper_url)?;
 
-    let config = CrawlerConfig::new(keeper_url, starting_url);
+    let max_retries = env::var("MAX_RETRIES")?.parse::<u32>()?;
+
+    let config = CrawlerConfig::new(keeper_url, max_retries, starting_url);
     Ok(config)
 }

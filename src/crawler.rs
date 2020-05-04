@@ -1,3 +1,5 @@
+use reqwest::blocking::Client;
+use reqwest::StatusCode;
 use select::document::Document;
 use select::predicate::Name;
 use serde::{Deserialize, Serialize};
@@ -9,27 +11,29 @@ use url::Url;
 
 pub struct CrawlerConfig {
     keeper_url: Url,
+    max_retries: u32,
     starting_url: Url,
 }
 
 impl CrawlerConfig {
-    pub fn new(keeper_url: Url, starting_url: Url) -> CrawlerConfig {
+    pub fn new(keeper_url: Url, max_retries: u32, starting_url: Url) -> CrawlerConfig {
         CrawlerConfig {
             keeper_url,
+            max_retries,
             starting_url,
         }
     }
 }
 
 pub struct Crawler {
-    client: reqwest::blocking::Client,
+    client: Client,
     config: CrawlerConfig,
 }
 
 impl Crawler {
     pub fn new(config: CrawlerConfig) -> Crawler {
         Crawler {
-            client: reqwest::blocking::Client::new(),
+            client: Client::new(),
             config,
         }
     }
@@ -78,10 +82,17 @@ impl Crawler {
         &self,
         body: CrawlerResultsMessage,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        self.client
-            .post(self.config.keeper_url.clone())
-            .body(serde_json::to_string(&body).unwrap())
-            .send()?;
+        let mut retries: u32 = 0;
+        let mut response_status = StatusCode::CONTINUE;
+        while response_status != StatusCode::OK && retries < self.config.max_retries {
+            retries += 1;
+            response_status = self
+                .client
+                .post(self.config.keeper_url.clone())
+                .body(serde_json::to_string(&body).unwrap())
+                .send()?
+                .status();
+        }
         Ok(())
     }
 }
