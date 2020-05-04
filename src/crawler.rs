@@ -1,4 +1,4 @@
-use reqwest::blocking::{Client, Response};
+use reqwest::blocking::Client;
 use reqwest::StatusCode;
 use select::document::Document;
 use select::predicate::Name;
