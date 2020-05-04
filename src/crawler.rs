@@ -86,12 +86,15 @@ impl Crawler {
         let mut response_status = StatusCode::CONTINUE;
         while response_status != StatusCode::OK && retries < self.config.max_retries {
             retries += 1;
-            response_status = self
+            response_status = match self
                 .client
                 .post(self.config.keeper_url.clone())
                 .body(serde_json::to_string(&body).unwrap())
-                .send()?
-                .status();
+                .send()
+            {
+                Ok(response) => response.status(),
+                Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            };
         }
         Ok(())
     }
