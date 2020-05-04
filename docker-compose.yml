@@ -1,0 +1,23 @@
+version: "3.7"
+services:
+  crawler:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/crawler-debug.Dockerfile
+    env_file: .env
+    environment:
+      - KEEPER_HOST=keeper
+    depends_on:
+      - keeper
+    restart: unless-stopped
+
+  keeper:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/module-debug.Dockerfile
+      args:
+        - MODULE_NAME=keeper
+        - MODULE_TAG=v0.0.1
+        - MODULE_TARGET=x86_64-unknown-linux-musl
+    environment:
+      - SERVER_PORT=3030
