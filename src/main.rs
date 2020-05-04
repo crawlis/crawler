@@ -14,6 +14,7 @@ fn main() {
         eprintln!("Problem initializing crawler config: {}", err);
         process::exit(1);
     });
+    println!("{:#?}", config);
     let crawler = Crawler::new(config);
     crawler.run().unwrap_or_else(|err| {
         eprintln!("Problem running the crawler: {}", err);
