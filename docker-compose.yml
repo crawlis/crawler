@@ -3,7 +3,7 @@ services:
   crawler:
     build:
       context: .
-      dockerfile: ./dockerfiles/crawler.Dockerfile
+      dockerfile: ./dockerfiles/crawler-debug.Dockerfile
     env_file: .env
     environment:
       - KEEPER_HOST=keeper

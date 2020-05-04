@@ -9,7 +9,6 @@ use std::collections::VecDeque;
 use std::error::Error;
 use url::Url;
 
-#[derive(Debug)]
 pub struct CrawlerConfig {
     keeper_url: Url,
     max_retries: u32,
