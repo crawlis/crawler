@@ -55,7 +55,7 @@ impl Crawler {
                     crawling_results
                         .iter()
                         .for_each(|crawling_result| queue.push_back(crawling_result.value.clone()));
-                    send(&crawling_results, &self.config.keeper_url, 2).await?;
+                    send(&crawling_results, &self.config.keeper_url, 10).await?;
                     map.insert(
                         crawling_url.clone(),
                         crawling_results
