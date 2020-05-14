@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::error::Error;
+use std::{thread, time};
 use url::Url;
 
 pub struct CrawlerConfig {
@@ -44,6 +45,8 @@ impl Crawler {
     }
 
     pub async fn run(&self) -> Result<(), Box<dyn Error>> {
+        self.wait_for_keeper_conn(time::Duration::from_secs(2), 10)
+            .await?;
         let mut map: HashMap<Url, HashSet<Url>> = HashMap::new();
         let mut queue: VecDeque<Url> = VecDeque::new();
         queue.push_back(self.config.starting_url.clone());
@@ -67,6 +70,29 @@ impl Crawler {
             }
         }
         Ok(())
+    }
+
+    async fn wait_for_keeper_conn(
+        &self,
+        refresh_time: time::Duration,
+        max_retries: u32,
+    ) -> Result<(), String> {
+        let client = Client::new();
+        for i in 0..max_retries {
+            println!("Waiting for database connexion, attempt number: {}", i);
+            match client.get(self.config.keeper_url.clone()).send().await {
+                Ok(response) => {
+                    println!("Keeper connexion is ready");
+                    return Ok(());
+                }
+                Err(_) => println!("Keeper connexion is not ready yet"),
+            }
+            thread::sleep(refresh_time);
+        }
+        Err(format!(
+            "Could not connect to keeper after {} attempts",
+            max_retries
+        ))
     }
 }
 
