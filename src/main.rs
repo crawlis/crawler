@@ -7,7 +7,8 @@ use std::error::Error;
 use std::process;
 use url::Url;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     dotenv().ok();
 
     let config = get_config().unwrap_or_else(|err| {
@@ -15,7 +16,7 @@ fn main() {
         process::exit(1);
     });
     let crawler = Crawler::new(config);
-    crawler.run().unwrap_or_else(|err| {
+    crawler.run().await.unwrap_or_else(|err| {
         eprintln!("Problem running the crawler: {}", err);
         process::exit(1);
     });
@@ -30,8 +31,6 @@ fn get_config() -> Result<CrawlerConfig, Box<dyn Error>> {
     let keeper_url = format!("http://{}:{}", keeper_host, keeper_port);
     let keeper_url = Url::parse(&keeper_url)?;
 
-    let max_retries = env::var("MAX_RETRIES")?.parse::<u32>()?;
-
-    let config = CrawlerConfig::new(keeper_url, max_retries, starting_url);
+    let config = CrawlerConfig::new(keeper_url, starting_url);
     Ok(config)
 }

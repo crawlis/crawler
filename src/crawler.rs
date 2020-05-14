@@ -1,5 +1,5 @@
-use reqwest::blocking::Client;
-use reqwest::StatusCode;
+use futures::{stream, StreamExt};
+use reqwest::Client;
 use select::document::Document;
 use select::predicate::Name;
 use serde::{Deserialize, Serialize};
@@ -7,125 +7,158 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::error::Error;
+use std::{thread, time};
 use url::Url;
 
 pub struct CrawlerConfig {
     keeper_url: Url,
-    max_retries: u32,
     starting_url: Url,
 }
 
 impl CrawlerConfig {
-    pub fn new(keeper_url: Url, max_retries: u32, starting_url: Url) -> CrawlerConfig {
+    pub fn new(keeper_url: Url, starting_url: Url) -> CrawlerConfig {
         CrawlerConfig {
             keeper_url,
-            max_retries,
             starting_url,
         }
     }
 }
 
+struct CrawlingResult {
+    parent: Url,
+    value: Url,
+}
+
+impl CrawlingResult {
+    fn from(parent: Url, value: Url) -> CrawlingResult {
+        CrawlingResult { parent, value }
+    }
+}
+
 pub struct Crawler {
-    client: Client,
     config: CrawlerConfig,
 }
 
 impl Crawler {
     pub fn new(config: CrawlerConfig) -> Crawler {
-        Crawler {
-            client: Client::new(),
-            config,
-        }
+        Crawler { config }
     }
 
-    pub fn run(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self) -> Result<(), Box<dyn Error>> {
+        self.wait_for_keeper_conn(time::Duration::from_secs(2), 10)
+            .await?;
         let mut map: HashMap<Url, HashSet<Url>> = HashMap::new();
         let mut queue: VecDeque<Url> = VecDeque::new();
         queue.push_back(self.config.starting_url.clone());
 
         while !queue.is_empty() {
-            let crawling_url: Url = queue.pop_front().unwrap();
+            let crawling_url = queue.pop_front().unwrap();
             if !map.contains_key(&crawling_url) {
-                if let Ok(crawling_results) = Crawler::crawl(crawling_url) {
-                    for child in crawling_results.children.iter() {
-                        queue.push_back(child.clone());
-                    }
+                if let Ok(crawling_results) = crawl(&crawling_url).await {
+                    crawling_results
+                        .iter()
+                        .for_each(|crawling_result| queue.push_back(crawling_result.value.clone()));
+                    send(&crawling_results, &self.config.keeper_url, 10).await?;
                     map.insert(
-                        crawling_results.parent.clone(),
-                        crawling_results.children.clone(),
+                        crawling_url.clone(),
+                        crawling_results
+                            .iter()
+                            .map(|crawling_result| crawling_result.value.clone())
+                            .collect(),
                     );
-                    self.send_to_keeper(CrawlerResultsMessage::from(crawling_results))?;
                 }
             }
         }
         Ok(())
     }
 
-    fn crawl(url: Url) -> Result<CrawlerResults, Box<dyn Error>> {
-        println!("Crawling {}", url);
-        let mut found_urls: HashSet<Url> = HashSet::new();
-        let response = reqwest::blocking::get(url.clone())?;
-        Document::from_read(response)?
-            .find(Name("a"))
-            .filter_map(|a| a.attr("href"))
-            .for_each(|link| {
-                if let Ok(url) = Url::parse(link) {
-                    found_urls.insert(url);
-                } else if let Ok(url) = url.join(link) {
-                    found_urls.insert(url);
-                }
-            });
-        Ok(CrawlerResults::from(url, found_urls))
-    }
-
-    fn send_to_keeper(
+    async fn wait_for_keeper_conn(
         &self,
-        body: CrawlerResultsMessage,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut retries: u32 = 0;
-        let mut response_status = StatusCode::CONTINUE;
-        while response_status != StatusCode::OK && retries < self.config.max_retries {
-            retries += 1;
-            response_status = match self
-                .client
-                .post(self.config.keeper_url.clone())
-                .body(serde_json::to_string(&body).unwrap())
-                .send()
-            {
-                Ok(response) => response.status(),
-                Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            };
+        refresh_time: time::Duration,
+        max_retries: u32,
+    ) -> Result<(), String> {
+        let client = Client::new();
+        for i in 0..max_retries {
+            println!("Waiting for database connexion, attempt number: {}", i);
+            match client.get(self.config.keeper_url.clone()).send().await {
+                Ok(_) => {
+                    println!("Keeper connexion is ready");
+                    return Ok(());
+                }
+                Err(_) => println!("Keeper connexion is not ready yet"),
+            }
+            thread::sleep(refresh_time);
         }
-        Ok(())
+        Err(format!(
+            "Could not connect to keeper after {} attempts",
+            max_retries
+        ))
     }
 }
 
-struct CrawlerResults {
-    parent: Url,
-    children: HashSet<Url>,
+async fn crawl(url: &Url) -> Result<Vec<CrawlingResult>, Box<dyn Error>> {
+    println!("Crawling {}", url);
+    let mut found_urls: HashSet<Url> = HashSet::new();
+    let response = reqwest::get(url.clone()).await?.text().await?;
+    Document::from(response.as_str())
+        .find(Name("a"))
+        .filter_map(|a| a.attr("href"))
+        .for_each(|link| {
+            if let Ok(url) = Url::parse(link) {
+                found_urls.insert(url);
+            } else if let Ok(url) = url.join(link) {
+                found_urls.insert(url);
+            }
+        });
+    let crawling_results = found_urls
+        .iter()
+        .map(|found_url| CrawlingResult::from(url.clone(), found_url.clone()))
+        .collect();
+    Ok(crawling_results)
 }
 
-impl CrawlerResults {
-    fn from(parent: Url, children: HashSet<Url>) -> CrawlerResults {
-        CrawlerResults { parent, children }
-    }
-}
-
-#[derive(Deserialize, Serialize)]
-struct CrawlerResultsMessage {
+#[derive(Serialize, Deserialize)]
+struct NewNodeRequestMessage {
     parent: String,
-    children: Vec<String>,
+    value: String,
 }
 
-impl CrawlerResultsMessage {
-    fn from(crawling_results: CrawlerResults) -> CrawlerResultsMessage {
-        CrawlerResultsMessage {
-            parent: crawling_results.parent.into_string(),
-            children: crawling_results
-                .children
-                .iter()
-                .map(|child| child.clone().into_string())
-                .collect::<Vec<String>>(),
+impl NewNodeRequestMessage {
+    fn from_crawling_result(crawling_result: &CrawlingResult) -> NewNodeRequestMessage {
+        NewNodeRequestMessage {
+            parent: crawling_result.parent.to_string(),
+            value: crawling_result.value.to_string(),
         }
     }
+}
+
+async fn send(
+    crawling_results: &Vec<CrawlingResult>,
+    url: &Url,
+    max_parrallel_requests: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let client = Client::new();
+    let responses = stream::iter(crawling_results)
+        .map(|crawling_result| {
+            let client = &client;
+            async move {
+                client
+                    .post(url.clone())
+                    .json(&NewNodeRequestMessage::from_crawling_result(
+                        crawling_result,
+                    ))
+                    .send()
+                    .await
+            }
+        })
+        .buffer_unordered(max_parrallel_requests);
+
+    responses
+        .for_each(|b| async {
+            if let Err(e) = b {
+                eprintln!("Got an error: {}", e)
+            }
+        })
+        .await;
+    Ok(())
 }
