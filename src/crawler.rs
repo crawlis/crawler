@@ -81,7 +81,7 @@ impl Crawler {
         for i in 0..max_retries {
             println!("Waiting for database connexion, attempt number: {}", i);
             match client.get(self.config.keeper_url.clone()).send().await {
-                Ok(response) => {
+                Ok(_) => {
                     println!("Keeper connexion is ready");
                     return Ok(());
                 }
