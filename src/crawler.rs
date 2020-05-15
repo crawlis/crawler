@@ -79,7 +79,7 @@ impl Crawler {
     ) -> Result<(), String> {
         let client = Client::new();
         for i in 0..max_retries {
-            println!("Waiting for database connexion, attempt number: {}", i);
+            println!("Waiting for keeper connexion, attempt number: {}", i);
             match client.get(self.config.keeper_url.clone()).send().await {
                 Ok(_) => {
                     println!("Keeper connexion is ready");
