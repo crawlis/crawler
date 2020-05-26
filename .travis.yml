@@ -62,20 +62,24 @@ jobs:
       env: TARGET=x86_64-apple-darwin
 
 before_install:
-  - set -e
   - rustup self update
 
 install:
   - rustup target add ${TARGET}
 
+before_script:
+  - set -e
+
 script:
-  - cargo build --target ${TARGET} --verbose --release
-  - cargo test --target ${TARGET} --verbose --release
+  - cargo build --target ${TARGET} --verbose
+  - cargo test --target ${TARGET} --verbose
 
 after_script:
   - set +e
 
 before_deploy:
+  - cargo build --target ${TARGET} --verbose --release
+  - cargo test --target ${TARGET} --verbose --release
   - mkdir -p target/executable
   - cp target/${TARGET}/debug/${MODULE_NAME} target/executable/${MODULE_NAME}-${TRAVIS_TAG}-${TARGET}-debug
   - cp target/${TARGET}/release/${MODULE_NAME} target/executable/${MODULE_NAME}-${TRAVIS_TAG}-${TARGET}

@@ -8,7 +8,6 @@ ARG RUST_VERSION=stable
 ##### Building the binary #####
 FROM clux/muslrust:${RUST_VERSION} as builder
 
-# RUN groupadd -g 10001 -r dockergrp && useradd -r -g dockergrp -u 10001 dockeruser
 
 # Download the target for static linking.
 RUN rustup target add x86_64-unknown-linux-musl
