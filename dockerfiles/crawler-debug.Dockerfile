@@ -2,43 +2,48 @@
 #   - Reduce the build time: non-project binaries are cached
 #   - Reduce the image space: the project is installed as a binary runnable from scratch image
 
-ARG RUST_VERSION=stable
+ARG BASE_IMAGE=ekidd/rust-musl-builder:latest
 
+##################################################
+#                                                #
+# BUILDER                                        #
+#                                                #
+# Debian-based image for openssl compillation    #
+#                                                #
+##################################################
+FROM ${BASE_IMAGE} as builder
 
-##### Building the binary #####
-FROM clux/muslrust:${RUST_VERSION} as builder
-
-
-# Download the target for static linking.
+RUN rustup self update
 RUN rustup target add x86_64-unknown-linux-musl
 
-# Create a new empty shell project
+# Create a new empty shell project to cache dependencies
 RUN USER=root cargo new --bin --vcs none crawler
-WORKDIR /volume/crawler
-
-# Copy the manifests
-COPY ./Cargo.lock ./Cargo.lock
+WORKDIR /home/rust/src/crawler
 COPY ./Cargo.toml ./Cargo.toml
-
-# Build step to cache dependencies
+COPY ./Cargo.lock ./Cargo.lock
 RUN cargo build --target x86_64-unknown-linux-musl
 RUN rm src/*.rs && \
     rm -rf ./target/x86_64-unknown-linux-musl/debug/deps/crawler*
 
-# Install the binary to run on scratch
+# Install the binary
 COPY ./src ./src
 RUN cargo build --target x86_64-unknown-linux-musl
-RUN mkdir /build-out && \
-    cp ./target/x86_64-unknown-linux-musl/debug/crawler /build-out/
+RUN chmod +x ./target/x86_64-unknown-linux-musl/debug/crawler
 
-
-##### Building the final image #####
+##################################################
+#                                                #
+# SCRATCH                                        #
+#                                                #
+# Empty image to execute binary                  #
+#                                                #
+##################################################
 FROM scratch
+
 # Adding the binary
-COPY --from=builder /build-out/crawler .
+COPY --from=builder /home/rust/src/crawler/target/x86_64-unknown-linux-musl/debug/crawler .
+
 # Adding SSL certificates
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 ENV SSL_CERT_DIR=/etc/ssl/certs
-USER 1000
 CMD ["./crawler"]
