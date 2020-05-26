@@ -13,6 +13,8 @@ opt-level = 3
 [dependencies]
 dotenv = "0.15"
 futures = "0.3"
+# We need a vendored version of openssl for cross compilation
+openssl = {version = "0.10", features = ["vendored"]}
 reqwest = { version = "0.10", features = ["json", "rustls-tls"] }
 select = "0.4"
 serde = { version = "1.0", features = ["derive"] }
