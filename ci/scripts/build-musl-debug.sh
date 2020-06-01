@@ -11,11 +11,10 @@
 # them unchanged on any distro, including tiny distros like Alpine (which
 # is heavily used for Docker containers).
 
-mkdir ./target/x86_64-unknown-linux-musl/debug
+mkdir -p ./target/x86_64-unknown-linux-musl/debug
 
 docker build -t "$1"-debug -f ./ci/dockerfiles/musl-builder-debug.Dockerfile .
 docker run -it --name "$1" "$1"-debug
 docker cp "$1":/home/rust/src/target/x86_64-unknown-linux-musl/debug/"$1" ./target/x86_64-unknown-linux-musl/debug/"$1"
 docker rm "$1"
 docker rmi "$1"-debug
-       
