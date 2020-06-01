@@ -1,16 +1,11 @@
 language: rust
 
-os: linux
-dist: xenial
-addons: &linux_addons
-  apt:
-    packages:
-      - pkg-config
-      - libssl-dev
-      # needed for musl targets
-      - musl-tools
-      # needed to build deb packages
-      - fakeroot
+services:
+  - docker
+
+env:
+  global:
+    - MODULE_NAME=crawler
 
 jobs:
   fast_finish: true
@@ -21,12 +16,10 @@ jobs:
       os: linux
       dist: xenial
       env: TARGET=x86_64-unknown-linux-gnu
-      addons: *linux_addons
     - rust: stable
       os: linux
       dist: xenial
       env: TARGET=x86_64-unknown-linux-musl
-      addons: *linux_addons
     - rust: stable
       os: osx
       env: TARGET=x86_64-apple-darwin
@@ -34,12 +27,10 @@ jobs:
       os: linux
       dist: xenial
       env: TARGET=x86_64-unknown-linux-gnu
-      addons: *linux_addons
     - rust: beta
       os: linux
       dist: xenial
       env: TARGET=x86_64-unknown-linux-musl
-      addons: *linux_addons
     - rust: beta
       os: osx
       env: TARGET=x86_64-apple-darwin
@@ -47,36 +38,33 @@ jobs:
       os: linux
       dist: xenial
       env: TARGET=x86_64-unknown-linux-gnu
-      addons: *linux_addons
     - rust: nightly
       os: linux
       dist: xenial
       env: TARGET=x86_64-unknown-linux-musl
-      addons: *linux_addons
     - rust: nightly
       os: osx
       env: TARGET=x86_64-apple-darwin
-
-before_install:
-  - set -e
-  - rustup self update
 
 install:
-  - rustup target add ${TARGET}
+  - ci/scripts/install.sh
+
+before_script:
+  - set -e
 
 script:
-  - cargo build --target ${TARGET} --verbose
-  - cargo test --target ${TARGET} --verbose
+  - ci/scripts/build-debug.sh ${MODULE_NAME}
+  - ci/scripts/test-debug.sh ${MODULE_NAME}
 
 after_script:
   - set +e
 
 before_deploy:
-  - cargo build --target ${TARGET} --verbose --release
-  - cargo test --target ${TARGET} --verbose --release
+  - ci/scripts/build-release.sh ${MODULE_NAME}
+  - ci/scripts/test-release.sh ${MODULE_NAME}
   - mkdir -p target/executable
-  - cp target/${TARGET}/debug/crawler target/executable/crawler-${TRAVIS_TAG}-${TARGET}-debug
-  - cp target/${TARGET}/release/crawler target/executable/crawler-${TRAVIS_TAG}-${TARGET}
+  - cp target/${TARGET}/debug/${MODULE_NAME} target/executable/${MODULE_NAME}-${TRAVIS_TAG}-${TARGET}-debug
+  - cp target/${TARGET}/release/${MODULE_NAME} target/executable/${MODULE_NAME}-${TRAVIS_TAG}-${TARGET}
 
 deploy:
   provider: releases
@@ -85,7 +73,7 @@ deploy:
   file_glob: true
   file: target/executable/*
   on:
-    repo: crawlis/crawler
+    repo: crawlis/${MODULE_NAME}
     tags: true
     condition: ${TRAVIS_RUST_VERSION} = stable
 
