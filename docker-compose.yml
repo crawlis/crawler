@@ -21,3 +21,15 @@ services:
         - MODULE_TARGET=x86_64-unknown-linux-musl
     environment:
       - SERVER_PORT=3030
+      - DATABASE_URL=postgresql://postgres:password@postgres-db/keeper
+    restart: unless-stopped
+
+  postgres-db:
+    image: postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=keeper
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
