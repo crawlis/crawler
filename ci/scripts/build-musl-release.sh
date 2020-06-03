@@ -1,7 +1,7 @@
  
 #!/bin/bash
 
-# Usage: ./musl-build-debug.sh <MODULE_NAME>
+# Usage: ./build-musl-release.sh <MODULE_NAME>
 #
 # Most parts of this script are comming from:
 # https://github.com/emk/rust-musl-builder/blob/master/examples/build-release
@@ -13,9 +13,9 @@
 
 mkdir -p ./target/x86_64-unknown-linux-musl/release
 
-docker build -t "$1"-debug -f ./ci/dockerfiles/musl-builder-debug.Dockerfile .
-docker run -it --name "$1" "$1"-debug
-docker cp "$1":/home/rust/src/target/x86_64-unknown-linux-musl/debug/"$1" ./target/x86_64-unknown-linux-musl/debug/"$1"
+docker build -t "$1"-release -f ./ci/dockerfiles/musl-builder-release.Dockerfile .
+docker run -it --name "$1" "$1"-release
+docker cp "$1":/home/rust/src/target/x86_64-unknown-linux-musl/release/"$1" ./target/x86_64-unknown-linux-musl/release/"$1"
 docker rm "$1"
-docker rmi "$1"-debug
+docker rmi "$1"-release
        
