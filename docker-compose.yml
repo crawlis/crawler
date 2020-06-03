@@ -3,7 +3,7 @@ services:
   crawler:
     build:
       context: .
-      dockerfile: ./dockerfiles/crawler-debug.Dockerfile
+      dockerfile: ./dockerfiles/local-module-debug.Dockerfile
     env_file: .env
     environment:
       - KEEPER_HOST=keeper
@@ -14,7 +14,7 @@ services:
   keeper:
     build:
       context: .
-      dockerfile: ./dockerfiles/module-debug.Dockerfile
+      dockerfile: ./dockerfiles/generic-module-debug.Dockerfile
       args:
         - MODULE_NAME=keeper
         - MODULE_TAG=v0.0.1

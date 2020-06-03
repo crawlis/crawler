@@ -1,3 +1,11 @@
+########################################################
+#                                                      #
+# THIS IMAGE SHOULD BE USED TO:                        #
+#   - Run a microservice from a crawlis github release #
+#   - Run it in debug mode                             #
+#                                                      #
+########################################################
+
 ARG RUST_VERSION=stable
 
 FROM alpine as builder
