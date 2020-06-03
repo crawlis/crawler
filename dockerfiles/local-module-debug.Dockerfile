@@ -20,7 +20,7 @@
 ##################################################
 FROM ekidd/rust-musl-builder as builder
 
-ARG MODULE_NAME=keeper
+ARG MODULE_NAME=crawler
 
 RUN rustup self update
 RUN rustup target add x86_64-unknown-linux-musl
@@ -48,7 +48,7 @@ RUN chmod +x ./target/x86_64-unknown-linux-musl/debug/${MODULE_NAME}
 ##################################################
 FROM scratch
 
-ARG MODULE_NAME=keeper
+ARG MODULE_NAME=crawler
 
 # Adding the binary
 COPY --from=builder /home/rust/src/${MODULE_NAME}/target/x86_64-unknown-linux-musl/debug/${MODULE_NAME} ./app
