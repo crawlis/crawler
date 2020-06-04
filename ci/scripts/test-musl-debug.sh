@@ -1,7 +1,7 @@
  
 #!/bin/bash
 
-# Usage: ./musl-test-debug.sh <MODULE_NAME>
+# Usage: ./test-musl-debug.sh <MODULE_NAME>
 #
 # Most parts of this script are comming from:
 # https://github.com/emk/rust-musl-builder/blob/master/examples/build-release
