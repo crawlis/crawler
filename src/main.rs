@@ -17,6 +17,7 @@ async fn main() {
         eprintln!("Problem initializing crawler config: {}", err);
         process::exit(1);
     });
+
     crawler.run().await.unwrap_or_else(|err| {
         eprintln!("Problem running the crawler: {}", err);
         process::exit(1);
@@ -30,6 +31,12 @@ fn get_config() -> Result<CrawlerConfig, Box<dyn Error>> {
     let nats_uri = env::var("NATS_URI")?;
     let nats_uri = Url::parse(&nats_uri)?;
 
-    let config = CrawlerConfig::new(nats_uri.into_string(), starting_url.into_string());
+    let nats_subject = String::from("node");
+
+    let config = CrawlerConfig::new(
+        nats_uri.into_string(),
+        nats_subject,
+        starting_url.into_string(),
+    );
     Ok(config)
 }

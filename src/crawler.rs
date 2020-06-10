@@ -10,13 +10,19 @@ use url::Url;
 
 pub struct CrawlerConfig {
     nats_publisher_uri: String,
+    nats_publisher_subject: String,
     starting_url: String,
 }
 
 impl CrawlerConfig {
-    pub fn new(nats_publisher_uri: String, starting_url: String) -> CrawlerConfig {
+    pub fn new(
+        nats_publisher_uri: String,
+        nats_publisher_subject: String,
+        starting_url: String,
+    ) -> CrawlerConfig {
         CrawlerConfig {
             nats_publisher_uri,
+            nats_publisher_subject,
             starting_url,
         }
     }
@@ -29,7 +35,8 @@ pub struct Crawler {
 
 impl<'a> Crawler {
     pub fn new(config: CrawlerConfig) -> Result<Crawler, std::io::Error> {
-        let nats_publisher = NatsPublisher::new(&config.nats_publisher_uri)?;
+        let nats_publisher =
+            NatsPublisher::new(&config.nats_publisher_uri, &config.nats_publisher_subject)?;
         Ok(Crawler {
             config,
             nats_publisher,
@@ -48,7 +55,7 @@ impl<'a> Crawler {
                         .urls
                         .iter()
                         .for_each(|url| queue.push_back(url.clone()));
-                    if let Err(err) = publish_to_nats(&self.nats_publisher, &crawling_results) {
+                    if let Err(err) = self.publish_results(&crawling_results) {
                         eprintln!("Problem sending results: {}", err);
                     };
                 }
@@ -57,26 +64,12 @@ impl<'a> Crawler {
         }
         Ok(())
     }
-}
 
-async fn crawl(crawling_url: &str) -> Result<CrawlingResults, Box<dyn Error>> {
-    // We ensure that the url is valid
-    let crawling_url = Url::parse(crawling_url)?;
-    println!("Crawling {}", crawling_url);
-    let mut found_urls: HashSet<Url> = HashSet::new();
-    let response = reqwest::get(crawling_url.clone()).await?.text().await?;
-    Document::from(response.as_str())
-        .find(Name("a"))
-        .filter_map(|a| a.attr("href"))
-        .for_each(|link| {
-            if let Ok(url) = Url::parse(link) {
-                found_urls.insert(url);
-            } else if let Ok(url) = crawling_url.join(link) {
-                found_urls.insert(url);
-            }
-        });
-    let crawling_results = CrawlingResults::from(crawling_url, Vec::from_iter(found_urls));
-    Ok(crawling_results)
+    fn publish_results(&self, crawling_results: &CrawlingResults) -> Result<(), std::io::Error> {
+        let key = format!("{}", crawling_results.parent);
+        let message = serde_json::to_vec(crawling_results)?;
+        self.nats_publisher.publish(&key, message)
+    }
 }
 
 #[derive(Serialize)]
@@ -98,11 +91,22 @@ impl CrawlingResults {
     }
 }
 
-fn publish_to_nats(
-    publisher: &NatsPublisher,
-    crawling_results: &CrawlingResults,
-) -> Result<(), std::io::Error> {
-    let key = format!("crawling.{}", crawling_results.parent);
-    let value = serde_json::to_vec(crawling_results)?;
-    publisher.publish(&key, value)
+async fn crawl(crawling_url: &str) -> Result<CrawlingResults, Box<dyn Error>> {
+    // We ensure that the url is valid
+    let crawling_url = Url::parse(crawling_url)?;
+    println!("Crawling {}", crawling_url);
+    let mut found_urls: HashSet<Url> = HashSet::new();
+    let response = reqwest::get(crawling_url.clone()).await?.text().await?;
+    Document::from(response.as_str())
+        .find(Name("a"))
+        .filter_map(|a| a.attr("href"))
+        .for_each(|link| {
+            if let Ok(url) = Url::parse(link) {
+                found_urls.insert(url);
+            } else if let Ok(url) = crawling_url.join(link) {
+                found_urls.insert(url);
+            }
+        });
+    let crawling_results = CrawlingResults::from(crawling_url, Vec::from_iter(found_urls));
+    Ok(crawling_results)
 }
