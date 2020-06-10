@@ -6,9 +6,16 @@ services:
       dockerfile: ./dockerfiles/local-module-debug.Dockerfile
     env_file: .env
     environment:
-      - KEEPER_HOST=keeper
+      - NATS_URI=nats://nats:4222
     depends_on:
-      - keeper
+      - nats
+
+  nats:
+    image: "nats"
+    expose:
+      - "4222"
+    ports:
+      - "8222:8222"
 
   keeper:
     build:

@@ -1,164 +1,108 @@
-use futures::{stream, StreamExt};
-use reqwest::Client;
+use crate::nats::NatsPublisher;
 use select::document::Document;
 use select::predicate::Name;
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use serde::Serialize;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::error::Error;
-use std::{thread, time};
+use std::iter::FromIterator;
 use url::Url;
 
 pub struct CrawlerConfig {
-    keeper_url: Url,
-    starting_url: Url,
+    nats_publisher_uri: String,
+    starting_url: String,
 }
 
 impl CrawlerConfig {
-    pub fn new(keeper_url: Url, starting_url: Url) -> CrawlerConfig {
+    pub fn new(nats_publisher_uri: String, starting_url: String) -> CrawlerConfig {
         CrawlerConfig {
-            keeper_url,
+            nats_publisher_uri,
             starting_url,
         }
     }
 }
 
-struct CrawlingResult {
-    parent: Url,
-    value: Url,
-}
-
-impl CrawlingResult {
-    fn from(parent: Url, value: Url) -> CrawlingResult {
-        CrawlingResult { parent, value }
-    }
-}
-
 pub struct Crawler {
     config: CrawlerConfig,
+    nats_publisher: NatsPublisher,
 }
 
-impl Crawler {
-    pub fn new(config: CrawlerConfig) -> Crawler {
-        Crawler { config }
+impl<'a> Crawler {
+    pub fn new(config: CrawlerConfig) -> Result<Crawler, std::io::Error> {
+        let nats_publisher = NatsPublisher::new(&config.nats_publisher_uri)?;
+        Ok(Crawler {
+            config,
+            nats_publisher,
+        })
     }
 
     pub async fn run(&self) -> Result<(), Box<dyn Error>> {
-        self.wait_for_keeper_conn(time::Duration::from_secs(2), 10)
-            .await?;
-        let mut map: HashMap<Url, HashSet<Url>> = HashMap::new();
-        let mut queue: VecDeque<Url> = VecDeque::new();
+        let mut queue: VecDeque<String> = VecDeque::new();
         queue.push_back(self.config.starting_url.clone());
 
         while !queue.is_empty() {
             let crawling_url = queue.pop_front().unwrap();
-            if !map.contains_key(&crawling_url) {
-                if let Ok(crawling_results) = crawl(&crawling_url).await {
+            match crawl(&crawling_url).await {
+                Ok(crawling_results) => {
                     crawling_results
+                        .urls
                         .iter()
-                        .for_each(|crawling_result| queue.push_back(crawling_result.value.clone()));
-                    send(&crawling_results, &self.config.keeper_url, 10).await?;
-                    map.insert(
-                        crawling_url.clone(),
-                        crawling_results
-                            .iter()
-                            .map(|crawling_result| crawling_result.value.clone())
-                            .collect(),
-                    );
+                        .for_each(|url| queue.push_back(url.clone()));
+                    if let Err(err) = publish_to_nats(&self.nats_publisher, &crawling_results) {
+                        eprintln!("Problem sending results: {}", err);
+                    };
                 }
+                Err(err) => eprintln!("Problem crawling url {} : {}", crawling_url, err),
             }
         }
         Ok(())
     }
-
-    async fn wait_for_keeper_conn(
-        &self,
-        refresh_time: time::Duration,
-        max_retries: u32,
-    ) -> Result<(), String> {
-        let client = Client::new();
-        for i in 0..max_retries {
-            println!("Waiting for keeper connexion, attempt number: {}", i);
-            match client.get(self.config.keeper_url.clone()).send().await {
-                Ok(_) => {
-                    println!("Keeper connexion is ready");
-                    return Ok(());
-                }
-                Err(_) => println!("Keeper connexion is not ready yet"),
-            }
-            thread::sleep(refresh_time);
-        }
-        Err(format!(
-            "Could not connect to keeper after {} attempts",
-            max_retries
-        ))
-    }
 }
 
-async fn crawl(url: &Url) -> Result<Vec<CrawlingResult>, Box<dyn Error>> {
-    println!("Crawling {}", url);
+async fn crawl(crawling_url: &str) -> Result<CrawlingResults, Box<dyn Error>> {
+    // We ensure that the url is valid
+    let crawling_url = Url::parse(crawling_url)?;
+    println!("Crawling {}", crawling_url);
     let mut found_urls: HashSet<Url> = HashSet::new();
-    let response = reqwest::get(url.clone()).await?.text().await?;
+    let response = reqwest::get(crawling_url.clone()).await?.text().await?;
     Document::from(response.as_str())
         .find(Name("a"))
         .filter_map(|a| a.attr("href"))
         .for_each(|link| {
             if let Ok(url) = Url::parse(link) {
                 found_urls.insert(url);
-            } else if let Ok(url) = url.join(link) {
+            } else if let Ok(url) = crawling_url.join(link) {
                 found_urls.insert(url);
             }
         });
-    let crawling_results = found_urls
-        .iter()
-        .map(|found_url| CrawlingResult::from(url.clone(), found_url.clone()))
-        .collect();
+    let crawling_results = CrawlingResults::from(crawling_url, Vec::from_iter(found_urls));
     Ok(crawling_results)
 }
 
-#[derive(Serialize, Deserialize)]
-struct NewNodeRequestMessage {
+#[derive(Serialize)]
+struct CrawlingResults {
     parent: String,
-    value: String,
+    urls: Vec<String>,
 }
 
-impl NewNodeRequestMessage {
-    fn from_crawling_result(crawling_result: &CrawlingResult) -> NewNodeRequestMessage {
-        NewNodeRequestMessage {
-            parent: crawling_result.parent.to_string(),
-            value: crawling_result.value.to_string(),
-        }
+impl CrawlingResults {
+    fn new(parent: String, urls: Vec<String>) -> CrawlingResults {
+        CrawlingResults { parent, urls }
+    }
+
+    fn from(parent: Url, urls: Vec<Url>) -> CrawlingResults {
+        CrawlingResults::new(
+            parent.into_string(),
+            urls.iter().map(|url| url.clone().into_string()).collect(),
+        )
     }
 }
 
-async fn send(
-    crawling_results: &Vec<CrawlingResult>,
-    url: &Url,
-    max_parrallel_requests: usize,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let client = Client::new();
-    let responses = stream::iter(crawling_results)
-        .map(|crawling_result| {
-            let client = &client;
-            async move {
-                client
-                    .post(url.clone())
-                    .json(&NewNodeRequestMessage::from_crawling_result(
-                        crawling_result,
-                    ))
-                    .send()
-                    .await
-            }
-        })
-        .buffer_unordered(max_parrallel_requests);
-
-    responses
-        .for_each(|b| async {
-            if let Err(e) = b {
-                eprintln!("Got an error: {}", e)
-            }
-        })
-        .await;
-    Ok(())
+fn publish_to_nats(
+    publisher: &NatsPublisher,
+    crawling_results: &CrawlingResults,
+) -> Result<(), std::io::Error> {
+    let key = format!("crawling.{}", crawling_results.parent);
+    let value = serde_json::to_vec(crawling_results)?;
+    publisher.publish(&key, value)
 }
