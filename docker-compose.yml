@@ -28,7 +28,7 @@ services:
         - MODULE_TARGET=x86_64-unknown-linux-musl
     environment:
       - NATS_URI=nats://nats:4222
-      - DATABASE_URL=postgresql://postgres:password@keeper-db/keeper
+      - DATABASE_URI=postgresql://postgres:password@keeper-db/keeper
     depends_on:
       - nats
       - keeper-db
