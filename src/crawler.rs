@@ -49,7 +49,7 @@ impl<'a> Crawler {
 
         while !queue.is_empty() {
             let crawling_url = queue.pop_front().unwrap();
-            match crawl(&crawling_url).await {
+            match crawl_url(&crawling_url).await {
                 Ok(crawling_results) => {
                     crawling_results
                         .urls
@@ -91,7 +91,7 @@ impl CrawlingResults {
     }
 }
 
-async fn crawl(crawling_url: &str) -> Result<CrawlingResults, Box<dyn Error>> {
+async fn crawl_url(crawling_url: &str) -> Result<CrawlingResults, Box<dyn Error>> {
     // We ensure that the url is valid
     let crawling_url = Url::parse(crawling_url)?;
     println!("Crawling {}", crawling_url);
