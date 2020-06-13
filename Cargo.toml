@@ -13,11 +13,11 @@ opt-level = 3
 [dependencies]
 dotenv = "0.15"
 futures = "0.3"
-# We need a vendored version of openssl for cross compilation
-openssl = {version = "0.10", features = ["vendored"]}
+natsio = "0.3"
 reqwest = { version = "0.10", features = ["json", "rustls-tls"] }
 select = "0.4"
-serde = { version = "1.0", features = ["derive"] }
+serde = "1.0"
+serde_derive = "1.0"
 serde_json = "1.0"
 tokio = { version = "0.2", features = ["full"] }
-url = "2.1.1"
+url = "2.1"

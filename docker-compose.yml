@@ -4,11 +4,19 @@ services:
     build:
       context: .
       dockerfile: ./dockerfiles/local-module-debug.Dockerfile
-    env_file: .env
     environment:
-      - KEEPER_HOST=keeper
+      - NATS_URI=nats://nats:4222
+      - STARTING_URL=https://lemonde.fr
     depends_on:
-      - keeper
+      - nats
+
+  nats:
+    image: "nats"
+    expose:
+      - "4222"
+    ports:
+      - "8222:8222"
+    restart: unless-stopped
 
   keeper:
     build:
@@ -19,10 +27,13 @@ services:
         - MODULE_TAG=v0.1.0
         - MODULE_TARGET=x86_64-unknown-linux-musl
     environment:
-      - SERVER_PORT=3030
-      - DATABASE_URL=postgresql://postgres:password@postgres-db/keeper
+      - NATS_URI=nats://nats:4222
+      - DATABASE_URI=postgresql://postgres:password@keeper-db/keeper
+    depends_on:
+      - nats
+      - keeper-db
 
-  postgres-db:
+  keeper-db:
     image: postgres
     environment:
       - POSTGRES_USER=postgres
