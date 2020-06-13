@@ -2,9 +2,11 @@ use crate::nats::NatsPublisher;
 use select::document::Document;
 use select::predicate::Name;
 use serde::Serialize;
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::error::Error;
+use std::hash::{Hash, Hasher};
 use std::iter::FromIterator;
 use url::Url;
 
@@ -66,13 +68,13 @@ impl<'a> Crawler {
     }
 
     fn publish_results(&self, crawling_results: &CrawlingResults) -> Result<(), std::io::Error> {
-        let key = format!("{}", crawling_results.parent);
+        let key = format!("{}", calculate_hash(crawling_results));
         let message = serde_json::to_vec(crawling_results)?;
         self.nats_publisher.publish(&key, message)
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Hash)]
 struct CrawlingResults {
     parent: String,
     urls: Vec<String>,
@@ -94,7 +96,6 @@ impl CrawlingResults {
 async fn crawl_url(crawling_url: &str) -> Result<CrawlingResults, Box<dyn Error>> {
     // We ensure that the url is valid
     let crawling_url = Url::parse(crawling_url)?;
-    println!("Crawling {}", crawling_url);
     let mut found_urls: HashSet<Url> = HashSet::new();
     let response = reqwest::get(crawling_url.clone()).await?.text().await?;
     Document::from(response.as_str())
@@ -109,4 +110,10 @@ async fn crawl_url(crawling_url: &str) -> Result<CrawlingResults, Box<dyn Error>
         });
     let crawling_results = CrawlingResults::from(crawling_url, Vec::from_iter(found_urls));
     Ok(crawling_results)
+}
+
+fn calculate_hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
 }
