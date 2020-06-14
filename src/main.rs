@@ -25,18 +25,21 @@ async fn main() {
 }
 
 fn get_config() -> Result<CrawlerConfig, Box<dyn Error>> {
-    let starting_url = env::var("STARTING_URL")?;
-    let starting_url = Url::parse(&starting_url)?;
+    let nats_subscriber_uri = env::var("NATS_URI")?;
+    let nats_subscriber_uri = Url::parse(&nats_subscriber_uri)?;
 
-    let nats_uri = env::var("NATS_URI")?;
-    let nats_uri = Url::parse(&nats_uri)?;
+    let nats_subscriber_subject = String::from("url");
 
-    let nats_subject = String::from("node");
+    let nats_publisher_uri = env::var("NATS_URI")?;
+    let nats_publisher_uri = Url::parse(&nats_publisher_uri)?;
+
+    let nats_publisher_subject = String::from("node");
 
     let config = CrawlerConfig::new(
-        nats_uri.into_string(),
-        nats_subject,
-        starting_url.into_string(),
+        nats_subscriber_uri.into_string(),
+        nats_subscriber_subject,
+        nats_publisher_uri.into_string(),
+        nats_publisher_subject,
     );
     Ok(config)
 }

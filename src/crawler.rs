@@ -1,73 +1,76 @@
-use crate::nats::NatsPublisher;
+use crate::nats::{NatsPublisher, NatsSubscriber};
 use select::document::Document;
 use select::predicate::Name;
 use serde::Serialize;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
-use std::collections::VecDeque;
-use std::error::Error;
+use std::error;
 use std::hash::{Hash, Hasher};
+use std::io;
 use std::iter::FromIterator;
 use url::Url;
 
 pub struct CrawlerConfig {
+    nats_subscriber_uri: String,
+    nats_subscriber_subject: String,
     nats_publisher_uri: String,
     nats_publisher_subject: String,
-    starting_url: String,
 }
 
 impl CrawlerConfig {
     pub fn new(
+        nats_subscriber_uri: String,
+        nats_subscriber_subject: String,
         nats_publisher_uri: String,
         nats_publisher_subject: String,
-        starting_url: String,
     ) -> CrawlerConfig {
         CrawlerConfig {
+            nats_subscriber_uri,
+            nats_subscriber_subject,
             nats_publisher_uri,
             nats_publisher_subject,
-            starting_url,
         }
     }
 }
 
 pub struct Crawler {
-    config: CrawlerConfig,
+    _config: CrawlerConfig,
     nats_publisher: NatsPublisher,
+    nats_subscriber: NatsSubscriber,
 }
 
 impl<'a> Crawler {
-    pub fn new(config: CrawlerConfig) -> Result<Crawler, std::io::Error> {
+    pub fn new(config: CrawlerConfig) -> Result<Crawler, io::Error> {
+        let nats_subscriber =
+            NatsSubscriber::new(&config.nats_subscriber_uri, &config.nats_subscriber_subject)?;
         let nats_publisher =
             NatsPublisher::new(&config.nats_publisher_uri, &config.nats_publisher_subject)?;
         Ok(Crawler {
-            config,
+            _config: config,
+            nats_subscriber,
             nats_publisher,
         })
     }
 
-    pub async fn run(&self) -> Result<(), Box<dyn Error>> {
-        let mut queue: VecDeque<String> = VecDeque::new();
-        queue.push_back(self.config.starting_url.clone());
-
-        while !queue.is_empty() {
-            let crawling_url = queue.pop_front().unwrap();
-            match crawl_url(&crawling_url).await {
-                Ok(crawling_results) => {
-                    crawling_results
-                        .urls
-                        .iter()
-                        .for_each(|url| queue.push_back(url.clone()));
-                    if let Err(err) = self.publish_results(&crawling_results) {
-                        eprintln!("Problem sending results: {}", err);
-                    };
+    pub async fn run(&self) -> Result<(), Box<dyn error::Error>> {
+        loop {
+            if let Some(message) = self.nats_subscriber.get_next_message() {
+                match serde_json::from_slice::<String>(&message.data) {
+                    Ok(crawling_url) => match crawl_url(&crawling_url).await {
+                        Ok(crawling_results) => {
+                            if let Err(err) = self.publish_results(&crawling_results) {
+                                eprintln!("Problem sending results: {}", err);
+                            };
+                        }
+                        Err(err) => eprintln!("Problem crawling url {} : {}", crawling_url, err),
+                    },
+                    Err(err) => eprintln!("Could not deserialize message: {}", err),
                 }
-                Err(err) => eprintln!("Problem crawling url {} : {}", crawling_url, err),
             }
         }
-        Ok(())
     }
 
-    fn publish_results(&self, crawling_results: &CrawlingResults) -> Result<(), std::io::Error> {
+    fn publish_results(&self, crawling_results: &CrawlingResults) -> Result<(), io::Error> {
         let key = format!("{}", calculate_hash(crawling_results));
         let message = serde_json::to_vec(crawling_results)?;
         self.nats_publisher.publish(&key, message)
@@ -93,7 +96,7 @@ impl CrawlingResults {
     }
 }
 
-async fn crawl_url(crawling_url: &str) -> Result<CrawlingResults, Box<dyn Error>> {
+async fn crawl_url(crawling_url: &str) -> Result<CrawlingResults, Box<dyn error::Error>> {
     // We ensure that the url is valid
     let crawling_url = Url::parse(crawling_url)?;
     let mut found_urls: HashSet<Url> = HashSet::new();
