@@ -40,7 +40,7 @@ pub struct Crawler {
 }
 
 impl<'a> Crawler {
-    pub fn new(config: CrawlerConfig) -> Result<Crawler, io::Error> {
+    pub fn new(config: CrawlerConfig) -> io::Result<Crawler> {
         let nats_subscriber =
             NatsSubscriber::new(&config.nats_subscriber_uri, &config.nats_subscriber_subject)?;
         let nats_publisher =
@@ -70,7 +70,7 @@ impl<'a> Crawler {
         }
     }
 
-    fn publish_results(&self, crawling_results: &CrawlingResults) -> Result<(), io::Error> {
+    fn publish_results(&self, crawling_results: &CrawlingResults) -> io::Result<()> {
         let key = format!("{}", calculate_hash(crawling_results));
         let message = serde_json::to_vec(crawling_results)?;
         self.nats_publisher.publish(&key, message)
