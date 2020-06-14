@@ -13,7 +13,7 @@ opt-level = 3
 [dependencies]
 dotenv = "0.15"
 futures = "0.3"
-natsio = "0.3"
+nats = "0.5"
 reqwest = { version = "0.10", features = ["json", "rustls-tls"] }
 select = "0.4"
 serde = "1.0"

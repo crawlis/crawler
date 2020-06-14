@@ -10,14 +10,6 @@ services:
     depends_on:
       - nats
 
-  nats:
-    image: "nats"
-    expose:
-      - "4222"
-    ports:
-      - "8222:8222"
-    restart: unless-stopped
-
   keeper:
     build:
       context: .
@@ -32,6 +24,26 @@ services:
     depends_on:
       - nats
       - keeper-db
+
+  planner:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/generic-module-debug.Dockerfile
+      args:
+        - MODULE_NAME=planner
+        - MODULE_TAG=v0.1.0
+        - MODULE_TARGET=x86_64-unknown-linux-musl
+    environment:
+      - NATS_URI=nats://nats:4222
+      - STARTING_URL=https://lemonde.fr
+    depends_on:
+      - nats
+
+  nats:
+    image: "nats"
+    ports:
+      - "8222:8222"
+    restart: unless-stopped
 
   keeper-db:
     image: postgres
