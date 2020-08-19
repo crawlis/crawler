@@ -1,4 +1,8 @@
+.github/
+ci/
 target
-Dockerfile
 .dockerignore
 .gitignore
+.travis.yml
+default.env
+README.md
